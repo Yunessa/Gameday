@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sources & Credits — Pearl Street Game Day</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF3E7; --paper-raised:#FFFFFF; --ink:#241C14; --ink-soft:#6B5D48;
+    --line:#E3D5B8; --accent:#128A45; --accent-ink:#FFFFFF;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#161310; --paper-raised:#211B15; --ink:#F3E9D8; --ink-soft:#B7A88C; --line:#3C3225; --accent:#2FD37A; --accent-ink:#0B1F10; }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{ background:var(--paper); color:var(--ink); font-family:'Inter',system-ui,sans-serif; padding:0 16px 40px; font-size:16px; line-height:1.55; max-width:640px; margin-inline:auto; }
+  h1,h2{font-family:'Fraunces',Georgia,serif; margin:0 0 6px;}
+  h1{font-size:24px;}
+  h2{font-size:17px; margin-top:32px; border-top:1px solid var(--line); padding-top:20px;}
+  a{color:var(--accent); font-weight:600;}
+  header{padding:24px 0 6px; border-bottom:1px solid var(--line);}
+  .back{display:inline-block; margin-bottom:10px; font-size:14px; color:var(--ink-soft); text-decoration:none;}
+  .sub{color:var(--ink-soft); font-size:14px; margin-top:2px;}
+  ul{padding-left:20px;} li{margin-bottom:8px;}
+  code{background:var(--paper-raised); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-family:'JetBrains Mono',monospace; font-size:13.5px;}
+  .swatches{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;}
+  .sw{width:64px; text-align:center; font-size:11px; color:var(--ink-soft);}
+  .sw i{display:block; width:64px; height:36px; border-radius:8px; border:1px solid var(--line); margin-bottom:4px;}
+  footer{margin-top:40px; color:var(--ink-soft); font-size:12.5px;}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">← Back to Game Day</a>
+  <h1>Sources &amp; Credits</h1>
+  <div class="sub">What this page is built on, and where the data comes from.</div>
+</header>
+
+<h2>Data</h2>
+<p>Live scores, schedules, and broadcast info are pulled directly from ESPN's public scoreboard endpoints (<code>site.api.espn.com</code>) by your own browser, refreshed roughly every 25 seconds while the page is open. This is an unofficial, undocumented ESPN endpoint — not a paid or licensed feed — so data can occasionally lag, go blank during ESPN maintenance, or change format without notice.</p>
+
+<h2>Independence</h2>
+<p>This is a fan-made tool built for Cheba Hut's Pearl Street regulars. It is not affiliated with, endorsed by, or operated by ESPN, the NFL, NCAA, NBA, MLB, NHL, MLS, the Premier League, the PGA Tour, or Cheba Hut Toasted Subs. Team names and abbreviations are shown for identification only.</p>
+
+<h2>Typography</h2>
+<ul>
+  <li><strong>Fraunces</strong> — headlines and team names. <a href="https://fonts.google.com/specimen/Fraunces" target="_blank" rel="noopener">Google Fonts</a>, designed by Undercase / Wei Huang, SIL Open Font License.</li>
+  <li><strong>Inter</strong> — body text and UI. <a href="https://fonts.google.com/specimen/Inter" target="_blank" rel="noopener">Google Fonts</a>, designed by Rasmus Andersson, SIL Open Font License.</li>
+  <li><strong>JetBrains Mono</strong> — scores and live clocks (tabular figures). <a href="https://fonts.google.com/specimen/JetBrains+Mono" target="_blank" rel="noopener">Google Fonts</a>, SIL Open Font License.</li>
+</ul>
+
+<h2>Color</h2>
+<p>Palette is a warm parchment ground with a green accent in the neighborhood of Cheba Hut's own brand green, tuned for readability rather than exact brand matching:</p>
+<div class="swatches">
+  <div class="sw"><i style="background:#FAF3E7;border-color:#E3D5B8;"></i>#FAF3E7</div>
+  <div class="sw"><i style="background:#128A45;"></i>#128A45</div>
+  <div class="sw"><i style="background:#C9781F;"></i>#C9781F</div>
+  <div class="sw"><i style="background:#D6432A;"></i>#D6432A</div>
+  <div class="sw"><i style="background:#241C14;"></i>#241C14</div>
+</div>
+
+<h2>Icons</h2>
+<p>Sport and UI icons are native emoji (⭐🏈🏀⚾🏒⚽⛳🔍📺) rendered by the visitor's own device/OS — no icon font or image library loaded, and no external icon service is called.</p>
+
+<h2>Code</h2>
+<p>Single static HTML file — no build step, no framework, no analytics or tracking of any kind. Team favorites are stored only in your own browser's local storage; nothing is sent to a server other than the score requests to ESPN described above.</p>
+
+<footer>Built by a Cheba Hut Pearl Street bartender, for the regulars who never miss a game.</footer>
+</body>
+</html>
