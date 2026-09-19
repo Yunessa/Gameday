@@ -103,6 +103,13 @@
   }
   .star-btn.active{background:var(--accent2); border-color:var(--accent2); color:#fff;}
   .search-empty{color:var(--ink-soft); text-align:center; margin-top:40px; font-size:15px; padding:0 12px;}
+  .retry-btn{background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:7px 14px; font:inherit; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;}
+  .show-all-btn{
+    display:block; width:100%; margin-top:10px; padding:13px 16px; border-radius:12px;
+    border:1.5px solid var(--line); background:var(--paper-raised); color:var(--ink);
+    font:inherit; font-weight:700; font-size:14.5px; cursor:pointer;
+  }
+  .show-all-btn:active{background:var(--line);}
 
   .crest{ width:24px; height:24px; object-fit:contain; flex-shrink:0; border-radius:6px; }
   .crest-md{width:32px;height:32px;} .crest-lg{width:34px;height:34px;}
@@ -231,7 +238,7 @@
 
   var LEAGUES = [
     { key:"nfl",  label:"NFL",               icon:"🏈", path:"football/nfl" },
-    { key:"cfb",  label:"College Football",  icon:"🏈", path:"football/college-football", scoreParams:"?groups=80&limit=140" },
+    { key:"cfb",  label:"College Football",  icon:"🏈", path:"football/college-football", scoreParams:"?groups=80&limit=140", teamParams:"?limit=1000" },
     { key:"nba",  label:"NBA",                icon:"🏀", path:"basketball/nba" },
     { key:"mlb",  label:"MLB",                icon:"⚾", path:"baseball/mlb" },
     { key:"nhl",  label:"NHL",                icon:"🏒", path:"hockey/nhl" },
@@ -245,7 +252,7 @@
   function safeSet(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
 
   var favorites = safeGet("gd_favorites_v1", []);
-  var teamsCache = safeGet("gd_teams_cache_v1", {});
+  var teamsCache = safeGet("gd_teams_cache_v2", {});
   var scheduleCache = {};
   var lastScores = {};
   var scoreboardData = {};
@@ -258,8 +265,16 @@
     safeSet("gd_favorites_v1", favorites);
   }
 
-  function fetchJSON(url){
-    return fetch(url, {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("status "+r.status); return r.json(); });
+  function fetchJSON(url, timeoutMs){
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, timeoutMs || 12000);
+    var opts = {cache:"no-store"};
+    if(ctrl) opts.signal = ctrl.signal;
+    return fetch(url, opts).then(function(r){
+      if(!r.ok) throw new Error("status "+r.status);
+      return r.json();
+    }).then(function(d){ clearTimeout(timer); return d; },
+            function(e){ clearTimeout(timer); throw e; });
   }
 
   function fetchScoreboard(league){
@@ -268,21 +283,57 @@
       .catch(function(){ scoreboardData[league.key] = null; return null; });
   }
 
+  var teamFetchState = {};   // key -> "loading" | "ok" | "error"
+  var teamFetchPromise = {};
+
   function fetchTeams(league){
     var cached = teamsCache[league.key]; var DAY = 864e5;
-    if(cached && (Date.now()-cached.fetchedAt) < DAY) return Promise.resolve(cached.teams);
-    var url = API + league.path + "/teams?limit=500";
-    return fetchJSON(url).then(function(d){
+    if(cached && cached.teams && cached.teams.length && (Date.now()-cached.fetchedAt) < DAY){
+      teamFetchState[league.key] = "ok";
+      return Promise.resolve(cached.teams);
+    }
+    if(teamFetchPromise[league.key] && (teamFetchState[league.key] === "loading" || teamFetchState[league.key] === "error")){
+      // already in flight, or already failed: don't hammer ESPN on every keystroke
+      return teamFetchPromise[league.key];
+    }
+    teamFetchState[league.key] = "loading";
+    var url = API + league.path + "/teams" + (league.teamParams || "?limit=500");
+    var p = fetchJSON(url, 15000).then(function(d){
       var list = [];
       var lg = (((d.sports||[])[0]||{}).leagues||[])[0];
       (lg ? lg.teams : []).forEach(function(t){
-        var team = t.team;
-        list.push({ id:team.id, name:team.displayName, abbrev:team.abbreviation||"", logo:(team.logos&&team.logos[0]&&team.logos[0].href)||"" });
+        var team = t.team; if(!team) return;
+        list.push({
+          id: team.id,
+          name: team.displayName,
+          abbrev: team.abbreviation || "",
+          nick: team.nickname || team.shortDisplayName || "",
+          loc: team.location || "",
+          logo: (team.logos && team.logos[0] && team.logos[0].href) || ""
+        });
       });
-      teamsCache[league.key] = {fetchedAt:Date.now(), teams:list};
-      safeSet("gd_teams_cache_v1", teamsCache);
+      if(list.length){
+        teamsCache[league.key] = {fetchedAt:Date.now(), teams:list};
+        safeSet("gd_teams_cache_v2", teamsCache);
+        teamFetchState[league.key] = "ok";
+      } else {
+        teamFetchState[league.key] = "error";
+      }
       return list;
-    }).catch(function(){ return []; });
+    }).catch(function(){
+      teamFetchState[league.key] = "error";
+      return (cached && cached.teams) ? cached.teams : [];
+    });
+    teamFetchPromise[league.key] = p;
+    return p;
+  }
+
+  function searchableLeagues(){ return LEAGUES.filter(function(l){ return !l.noTeams; }); }
+
+  function loadAllTeams(onEach){
+    return searchableLeagues().map(function(l){
+      return fetchTeams(l).then(function(list){ if(onEach) onEach(l, list); return list; });
+    });
   }
 
   function fetchTeamSchedule(league, teamId){
@@ -488,6 +539,9 @@
     root.innerHTML = html;
   }
 
+  var COLLAPSED_COUNT = 6;
+  var expandedLeagues = {};
+
   function renderLeagueEvents(league){
     var target = document.getElementById("games-"+league.key);
     var countEl = document.getElementById("cnt-"+league.key);
@@ -497,23 +551,33 @@
     if(!events || events.length===0){ target.innerHTML = '<div class="league-empty">No games on the board today.</div>'; countEl.textContent=""; return; }
 
     if(league.key === "golf"){
-      countEl.textContent = "";
+      countEl.textContent = events.length + (events.length===1?" event":" events");
+      var gExpanded = !!expandedLeagues[league.key];
+      var gShown = gExpanded ? events : events.slice(0, 3);
       var html = "";
-      events.slice(0,3).forEach(function(ev){
+      gShown.forEach(function(ev){
         var st = statusOf(ev);
         html += '<div class="golf-card"><h3>⛳ '+ev.shortName+'</h3><div class="gmeta">'+(st.detail||"")+'</div><div class="gmeta">📺 '+broadcastText(ev)+'</div></div>';
       });
+      if(events.length > 3){
+        html += '<button class="show-all-btn" data-lk="'+league.key+'">' +
+          (gExpanded ? "Show less" : "Show all "+events.length+" events") + '</button>';
+      }
       target.innerHTML = html || '<div class="league-empty">No tournament this week.</div>';
+      wireShowAll(target, league);
       return;
     }
 
-    var sorted = events.slice().sort(function(a,b){
+    var sortedAll = events.slice().sort(function(a,b){
       var sa=statusOf(a), sb=statusOf(b); var rank={in:0,pre:1,post:2};
       var ra = rank[sa.state]!==undefined?rank[sa.state]:3, rb = rank[sb.state]!==undefined?rank[sb.state]:3;
       if(ra!==rb) return ra-rb;
       return new Date(a.date)-new Date(b.date);
-    }).slice(0,8);
-    countEl.textContent = events.length + (events.length===1?" game":" games");
+    });
+    var isExpanded = !!expandedLeagues[league.key];
+    var sorted = isExpanded ? sortedAll : sortedAll.slice(0, COLLAPSED_COUNT);
+    var liveCount = sortedAll.filter(function(e){ return statusOf(e).state === "in"; }).length;
+    countEl.textContent = (liveCount ? liveCount+" live · " : "") + sortedAll.length + (sortedAll.length===1?" game":" games");
 
     var html = "";
     sorted.forEach(function(ev){
@@ -535,6 +599,10 @@
       html += '<div class="game-card'+(st.state==="in"?" is-live":"")+'">' + rowFor(away) + rowFor(home) +
         '<div class="game-foot"><span class="status-badge '+badgeClass+'">'+badgeText+'</span><span>📺 '+broadcastText(ev)+'</span></div></div>';
     });
+    if(sortedAll.length > COLLAPSED_COUNT){
+      html += '<button class="show-all-btn" data-lk="'+league.key+'">' +
+        (isExpanded ? "Show less" : "Show all "+sortedAll.length+" games") + '</button>';
+    }
     target.innerHTML = html;
 
     target.querySelectorAll(".game-fav-star").forEach(function(btn){
@@ -543,6 +611,21 @@
           abbrev:btn.getAttribute("data-abbrev"), logo:decodeURIComponent(btn.getAttribute("data-logo")) };
         toggleFav(league.key, team); renderFavorites(); renderLeagueEvents(league);
       });
+    });
+    wireShowAll(target, league);
+  }
+
+  function wireShowAll(target, league){
+    var btn = target.querySelector(".show-all-btn");
+    if(!btn) return;
+    btn.addEventListener("click", function(){
+      var wasExpanded = !!expandedLeagues[league.key];
+      expandedLeagues[league.key] = !wasExpanded;
+      renderLeagueEvents(league);
+      if(wasExpanded){
+        var sec = document.getElementById("lg-"+league.key);
+        if(sec) sec.scrollIntoView({block:"start"});
+      }
     });
   }
 
@@ -569,27 +652,45 @@
   var searchResults = document.getElementById("searchResults");
   var teamsLoaded = false;
 
+  var PROMPT_MSG = 'Start typing to find a team and tap the star to pin it to your home page.';
+
+  function teamsStillLoading(){
+    return searchableLeagues().some(function(l){
+      return teamFetchState[l.key] !== "ok" && teamFetchState[l.key] !== "error";
+    });
+  }
+
+  var teamLoadStarted = false;
+  function startTeamLoad(){
+    if(teamLoadStarted) return;
+    teamLoadStarted = true;
+    loadAllTeams(function(){
+      // re-run whatever the user has already typed as each league lands
+      if(!searchOverlay.hidden && searchInput.value.trim()) doSearch(searchInput.value);
+      if(!teamsStillLoading()) teamsLoaded = true;
+    });
+  }
+
   function openSearch(){
     searchOverlay.hidden = false; searchInput.value = ""; searchInput.focus();
-    searchResults.innerHTML = '<div class="search-empty">Loading team lists…</div>';
-    if(!teamsLoaded){
-      Promise.all(LEAGUES.filter(function(l){return !l.noTeams;}).map(fetchTeams)).then(function(){
-        teamsLoaded = true;
-        searchResults.innerHTML = '<div class="search-empty">Start typing to find a team and tap the star to pin it to your home page.</div>';
-      });
-    } else {
-      searchResults.innerHTML = '<div class="search-empty">Start typing to find a team and tap the star to pin it to your home page.</div>';
-    }
+    searchResults.innerHTML = '<div class="search-empty">'+PROMPT_MSG+'</div>';
+    startTeamLoad();
   }
   function closeSearch(){ searchOverlay.hidden = true; }
 
   function doSearch(q){
     q = q.trim().toLowerCase();
-    if(!q){ searchResults.innerHTML = '<div class="search-empty">Start typing to find a team and tap the star to pin it to your home page.</div>'; return; }
+    if(!q){ searchResults.innerHTML = '<div class="search-empty">'+PROMPT_MSG+'</div>'; return; }
+    startTeamLoad();
     var html = ""; var any = false;
-    LEAGUES.filter(function(l){return !l.noTeams;}).forEach(function(league){
-      var cached = teamsCache[league.key]; if(!cached) return;
-      var matches = cached.teams.filter(function(t){ return t.name.toLowerCase().indexOf(q)!==-1 || (t.abbrev||"").toLowerCase().indexOf(q)!==-1; }).slice(0,8);
+    searchableLeagues().forEach(function(league){
+      var cached = teamsCache[league.key]; if(!cached || !cached.teams) return;
+      var matches = cached.teams.filter(function(t){
+        return t.name.toLowerCase().indexOf(q)!==-1 ||
+               (t.abbrev||"").toLowerCase().indexOf(q)!==-1 ||
+               (t.nick||"").toLowerCase().indexOf(q)!==-1 ||
+               (t.loc||"").toLowerCase().indexOf(q)!==-1;
+      }).slice(0,8);
       if(matches.length===0) return; any = true;
       html += '<div class="search-league-label">'+league.icon+' '+league.label+'</div>';
       matches.forEach(function(t){
@@ -598,7 +699,25 @@
           '<button class="star-btn '+(fav?"active":"")+'" data-lk="'+league.key+'" data-id="'+t.id+'" data-name="'+encodeURIComponent(t.name)+'" data-abbrev="'+t.abbrev+'" data-logo="'+encodeURIComponent(t.logo)+'" aria-label="'+(fav?"Unpin ":"Pin ")+t.name+'">'+(fav?"★":"☆")+'</button></div>';
       });
     });
-    searchResults.innerHTML = any ? html : '<div class="search-empty">No teams found for "'+q+'".</div>';
+    if(!any){
+      if(teamsStillLoading()){
+        searchResults.innerHTML = '<div class="search-empty">Loading team lists… hang on a sec.</div>';
+      } else {
+        var allFailed = searchableLeagues().every(function(l){ return teamFetchState[l.key] === "error"; });
+        searchResults.innerHTML = allFailed
+          ? '<div class="search-empty">Couldn\'t reach ESPN for team lists. Check your connection and <button id="retryTeams" class="retry-btn">try again</button>.</div>'
+          : '<div class="search-empty">No teams found for "'+q+'".</div>';
+        var rb = document.getElementById("retryTeams");
+        if(rb) rb.onclick = function(){
+          searchableLeagues().forEach(function(l){ teamFetchState[l.key] = null; teamFetchPromise[l.key] = null; });
+          teamsLoaded = false; teamLoadStarted = false;
+          searchResults.innerHTML = '<div class="search-empty">Loading team lists…</div>';
+          startTeamLoad();
+        };
+      }
+      return;
+    }
+    searchResults.innerHTML = html;
     searchResults.querySelectorAll(".star-btn").forEach(function(btn){
       btn.addEventListener("click", function(){
         var team = { id:btn.getAttribute("data-id"), name:decodeURIComponent(btn.getAttribute("data-name")),
@@ -619,6 +738,8 @@
   renderFavorites();
   refreshAll();
   setInterval(refreshAll, POLL_MS);
+  // warm the team lists in the background so search is instant when tapped
+  setTimeout(startTeamLoad, 1500);
 })();
 </script>
 </body>
