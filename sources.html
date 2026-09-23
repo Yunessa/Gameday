@@ -3,73 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sources & Credits — Pearl Street Game Day</title>
+<title>Sources &amp; Credits — Game Day</title>
+<meta name="theme-color" content="#0A8A43">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏈</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#FAF3E7; --paper-raised:#FFFFFF; --ink:#241C14; --ink-soft:#6B5D48;
-    --line:#E3D5B8; --accent:#128A45; --accent-ink:#FFFFFF;
+    --bg:#F2F2F7; --surface:#FFFFFF; --text:#1C1C1E; --text-2:#6E6E73; --text-3:#8E8E93;
+    --sep:#E3E3E8; --accent:#0A8A43; --radius:16px;
+    --shadow:0 1px 2px rgba(0,0,0,.05), 0 0 0 .5px rgba(0,0,0,.04);
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --paper:#161310; --paper-raised:#211B15; --ink:#F3E9D8; --ink-soft:#B7A88C; --line:#3C3225; --accent:#2FD37A; --accent-ink:#0B1F10; }
+    :root{ --bg:#000; --surface:#1C1C1E; --text:#F2F2F7; --text-2:#AEAEB2; --text-3:#8E8E93;
+      --sep:#38383A; --accent:#30D158; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme: dark; }
   }
   *{box-sizing:border-box;}
   html,body{margin:0;}
-  body{ background:var(--paper); color:var(--ink); font-family:'Inter',system-ui,sans-serif; padding:0 16px 40px; font-size:16px; line-height:1.55; max-width:640px; margin-inline:auto; }
-  h1,h2{font-family:'Fraunces',Georgia,serif; margin:0 0 6px;}
-  h1{font-size:24px;}
-  h2{font-size:17px; margin-top:32px; border-top:1px solid var(--line); padding-top:20px;}
-  a{color:var(--accent); font-weight:600;}
-  header{padding:24px 0 6px; border-bottom:1px solid var(--line);}
-  .back{display:inline-block; margin-bottom:10px; font-size:14px; color:var(--ink-soft); text-decoration:none;}
-  .sub{color:var(--ink-soft); font-size:14px; margin-top:2px;}
-  ul{padding-left:20px;} li{margin-bottom:8px;}
-  code{background:var(--paper-raised); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-family:'JetBrains Mono',monospace; font-size:13.5px;}
-  .swatches{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;}
-  .sw{width:64px; text-align:center; font-size:11px; color:var(--ink-soft);}
-  .sw i{display:block; width:64px; height:36px; border-radius:8px; border:1px solid var(--line); margin-bottom:4px;}
-  footer{margin-top:40px; color:var(--ink-soft); font-size:12.5px;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px; line-height:1.5; padding:0 16px 48px; max-width:600px; margin-inline:auto;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent);}
+  header{padding:26px 0 18px;}
+  .back{display:inline-block; margin-bottom:12px; font-size:15px; color:var(--accent); text-decoration:none;}
+  h1{font-size:30px; font-weight:700; letter-spacing:-0.02em; margin:0;}
+  .sub{color:var(--text-2); font-size:15px; margin-top:4px;}
+  h2{font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+     color:var(--text-3); margin:28px 0 8px 4px;}
+  .card{background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px;}
+  .card p{margin:0 0 10px;} .card p:last-child{margin-bottom:0;}
+  .row{padding:12px 0; border-bottom:.5px solid var(--sep);}
+  .row:first-child{padding-top:0;} .row:last-child{border-bottom:none; padding-bottom:0;}
+  .row .t{font-weight:600; font-size:15.5px;}
+  .row .d{color:var(--text-2); font-size:14px; margin-top:2px;}
+  code{background:var(--bg); border-radius:6px; padding:2px 6px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13.5px;}
+  .swatches{display:flex; gap:10px; flex-wrap:wrap;}
+  .sw{text-align:center; font-size:11px; color:var(--text-3);
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .sw i{display:block; width:62px; height:40px; border-radius:10px; margin-bottom:5px;
+        box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12);}
+  footer{margin-top:34px; color:var(--text-3); font-size:13px; text-align:center; line-height:1.6;}
 </style>
 </head>
 <body>
+
 <header>
-  <a class="back" href="index.html">← Back to Game Day</a>
+  <a class="back" href="index.html">‹ Game Day</a>
   <h1>Sources &amp; Credits</h1>
-  <div class="sub">What this page is built on, and where the data comes from.</div>
+  <div class="sub">Where the scores come from, and what this thing is built out of.</div>
 </header>
 
-<h2>Data</h2>
-<p>Live scores, schedules, and broadcast info are pulled directly from ESPN's public scoreboard endpoints (<code>site.api.espn.com</code>) by your own browser, refreshed roughly every 25 seconds while the page is open. This is an unofficial, undocumented ESPN endpoint — not a paid or licensed feed — so data can occasionally lag, go blank during ESPN maintenance, or change format without notice.</p>
+<h2>Live data</h2>
+<div class="card">
+  <p>Scores, schedules and TV listings come from ESPN's public scoreboard endpoints
+  (<code>site.api.espn.com</code>), requested directly by your own phone or laptop while the page is open.
+  Live games refresh about every 25 seconds; everything else refreshes every few minutes.</p>
+  <p>This is an unofficial, undocumented ESPN endpoint, not a paid or licensed feed. Scores can lag a few
+  seconds behind the broadcast, go blank during ESPN maintenance, or change format without warning.
+  Never settle a bet with it.</p>
+</div>
+
+<h2>Leagues covered</h2>
+<div class="card">
+  <div class="row"><div class="t">🏈 NFL &amp; College Football</div><div class="d">College football is FBS only.</div></div>
+  <div class="row"><div class="t">🏀 NBA · ⚾ MLB · 🏒 NHL</div><div class="d">Full regular season and postseason.</div></div>
+  <div class="row"><div class="t">⚽ Soccer</div><div class="d">Champions League, Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Liga MX, MLS.</div></div>
+  <div class="row"><div class="t">🏎️ Formula 1</div><div class="d">Race weekends with circuit, session status and broadcast.</div></div>
+  <div class="row"><div class="t">⛳ Golf</div><div class="d">PGA Tour events and current leader.</div></div>
+</div>
 
 <h2>Independence</h2>
-<p>This is a fan-made tool built for Cheba Hut's Pearl Street regulars. It is not affiliated with, endorsed by, or operated by ESPN, the NFL, NCAA, NBA, MLB, NHL, MLS, the Premier League, the PGA Tour, or Cheba Hut Toasted Subs. Team names and abbreviations are shown for identification only.</p>
+<div class="card">
+  <p>Fan-made, built for the Cheba Hut Pearl Street regulars. Not affiliated with, endorsed by, or operated by
+  ESPN, the NFL, NCAA, NBA, MLB, NHL, MLS, Liga MX, the Premier League, UEFA, La Liga, Serie A, the Bundesliga,
+  Ligue 1, Formula 1, the PGA Tour, or Cheba Hut Toasted Subs. Team names, abbreviations and crests are shown
+  for identification only and remain the property of their respective owners.</p>
+</div>
 
 <h2>Typography</h2>
-<ul>
-  <li><strong>Fraunces</strong> — headlines and team names. <a href="https://fonts.google.com/specimen/Fraunces" target="_blank" rel="noopener">Google Fonts</a>, designed by Undercase / Wei Huang, SIL Open Font License.</li>
-  <li><strong>Inter</strong> — body text and UI. <a href="https://fonts.google.com/specimen/Inter" target="_blank" rel="noopener">Google Fonts</a>, designed by Rasmus Andersson, SIL Open Font License.</li>
-  <li><strong>JetBrains Mono</strong> — scores and live clocks (tabular figures). <a href="https://fonts.google.com/specimen/JetBrains+Mono" target="_blank" rel="noopener">Google Fonts</a>, SIL Open Font License.</li>
-</ul>
+<div class="card">
+  <p>No web fonts are downloaded. The page uses your device's own system typeface: San Francisco on iPhone,
+  iPad and Mac, Roboto on Android, Segoe UI on Windows. Scores and clocks use the matching system monospace
+  face so the digits stay aligned as they change.</p>
+  <p>That keeps the page fast on bar wifi and makes it read like the rest of your phone.</p>
+</div>
 
 <h2>Color</h2>
-<p>Palette is a warm parchment ground with a green accent in the neighborhood of Cheba Hut's own brand green, tuned for readability rather than exact brand matching:</p>
-<div class="swatches">
-  <div class="sw"><i style="background:#FAF3E7;border-color:#E3D5B8;"></i>#FAF3E7</div>
-  <div class="sw"><i style="background:#128A45;"></i>#128A45</div>
-  <div class="sw"><i style="background:#C9781F;"></i>#C9781F</div>
-  <div class="sw"><i style="background:#D6432A;"></i>#D6432A</div>
-  <div class="sw"><i style="background:#241C14;"></i>#241C14</div>
+<div class="card">
+  <p style="margin-bottom:14px;">A neutral grey-and-white system with a green accent in the neighborhood of
+  Cheba Hut's brand green, tuned for contrast rather than exact brand matching. Red is reserved for live games
+  only. Dark mode follows your phone's setting automatically.</p>
+  <div class="swatches">
+    <div class="sw"><i style="background:#0A8A43;"></i>#0A8A43</div>
+    <div class="sw"><i style="background:#FF3B30;"></i>#FF3B30</div>
+    <div class="sw"><i style="background:#FF9500;"></i>#FF9500</div>
+    <div class="sw"><i style="background:#F2F2F7;"></i>#F2F2F7</div>
+    <div class="sw"><i style="background:#1C1C1E;"></i>#1C1C1E</div>
+  </div>
 </div>
 
 <h2>Icons</h2>
-<p>Sport and UI icons are native emoji (⭐🏈🏀⚾🏒⚽⛳🔍📺) rendered by the visitor's own device/OS — no icon font or image library loaded, and no external icon service is called.</p>
+<div class="card">
+  <p>Every icon is a native emoji drawn by your own device. No icon font, no image library, no third-party
+  icon service is contacted. Team crests are loaded from ESPN's CDN, with a colored initials badge as a
+  fallback when a crest is missing.</p>
+</div>
 
-<h2>Code</h2>
-<p>Single static HTML file — no build step, no framework, no analytics or tracking of any kind. Team favorites are stored only in your own browser's local storage; nothing is sent to a server other than the score requests to ESPN described above.</p>
+<h2>Privacy &amp; code</h2>
+<div class="card">
+  <p>One static HTML file. No build step, no framework, no cookies, no analytics, no tracking of any kind.</p>
+  <p>Your pinned teams are saved in your own browser's local storage and never leave your device.
+  The only requests this page makes are the score requests to ESPN described above.</p>
+</div>
 
-<footer>Built by a Cheba Hut Pearl Street bartender, for the regulars who never miss a game.</footer>
+<footer>
+  Built by a Cheba Hut Pearl Street bartender,<br>for the regulars who never miss a game. 🥪
+</footer>
 </body>
 </html>
