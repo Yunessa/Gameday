@@ -1,15 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-6ZSDKK44FJ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-6ZSDKK44FJ');
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pearl Street Game Day</title>
@@ -235,7 +226,11 @@
   .s-label{font-size:12.5px; font-weight:600; color:var(--text-3); margin:18px 0 7px 4px; text-transform:uppercase; letter-spacing:.04em;}
   .s-row{display:flex; align-items:center; gap:12px; padding:11px 14px; background:var(--surface);
     box-shadow:var(--shadow); border-radius:var(--radius-sm); margin-bottom:7px;}
-  .s-row .nm{flex:1; font-weight:600; font-size:15.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .s-main{flex:1; min-width:0;}
+  .s-row .nm{font-weight:600; font-size:15.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .s-next{font-size:12.5px; color:var(--text-2); margin-top:2px; line-height:1.35;}
+  .nx-live{color:var(--live); font-weight:800; font-size:11.5px; letter-spacing:.03em;}
+  .fav-next{margin-top:3px;}
   .s-empty{color:var(--text-2); text-align:center; margin-top:50px; font-size:15px; padding:0 20px; line-height:1.5;}
   .s-empty button{margin-top:14px; background:var(--accent); color:var(--accent-ink); border:none;
     padding:10px 20px; border-radius:99px; font-weight:600; font-size:14.5px;}
@@ -334,7 +329,6 @@
 
   var favorites    = safeGet("gd_favorites_v1", []);
   var teamsCache   = safeGet("gd_teams_cache_v3", {});
-  var scheduleCache = {};
   var scoreboardData = {};
   var lastScores = {};
   var expanded = {};
@@ -362,14 +356,70 @@
     var t = st.type || {};
     return { state: t.state || "pre", detail: t.shortDetail || t.detail || t.description || "", completed: !!t.completed };
   }
-  function broadcastText(ev){
+  function broadcastText(ev, blankIfNone){
     var comp = (ev.competitions||[])[0] || {};
     var names = [];
-    (comp.broadcasts||[]).forEach(function(b){ (b.names||[]).forEach(function(n){ if(names.indexOf(n)<0) names.push(n); }); });
+    function add(n){ if(n && names.indexOf(n)<0) names.push(n); }
+    // scoreboard shape: broadcasts[].names[]   |   team-schedule shape: broadcasts[].media.shortName
+    (comp.broadcasts||[]).forEach(function(b){
+      (b.names||[]).forEach(add);
+      if(b.media && b.media.shortName) add(b.media.shortName);
+    });
     if(!names.length && comp.geoBroadcasts){
-      comp.geoBroadcasts.forEach(function(g){ var n=g.media&&g.media.shortName; if(n&&names.indexOf(n)<0) names.push(n); });
+      comp.geoBroadcasts.forEach(function(g){ add(g.media && g.media.shortName); });
     }
-    return names.length ? names.join(", ") : "Check listings";
+    if(!names.length) return blankIfNone ? "" : "Check listings";
+    return names.slice(0,3).join(", ");
+  }
+
+  /* ============ Mountain Time ============ */
+  var TZ = "America/Denver";
+  var WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  function mtParts(d){
+    var dt = (d instanceof Date) ? d : new Date(d);
+    try{
+      var o = {};
+      new Intl.DateTimeFormat("en-US", {timeZone:TZ, year:"numeric", month:"numeric", day:"numeric",
+        weekday:"short", hour:"numeric", minute:"numeric", hourCycle:"h23"})
+        .formatToParts(dt).forEach(function(x){ o[x.type] = x.value; });
+      return { y:+o.year, m:+o.month, d:+o.day, wd:o.weekday, h:(+o.hour)%24, mi:+o.minute };
+    }catch(e){
+      return { y:dt.getFullYear(), m:dt.getMonth()+1, d:dt.getDate(), wd:WD[dt.getDay()], h:dt.getHours(), mi:dt.getMinutes() };
+    }
+  }
+  function fmtClock(d){
+    var dt = (d instanceof Date) ? d : new Date(d);
+    try{ return new Intl.DateTimeFormat("en-US", {timeZone:TZ, hour:"numeric", minute:"2-digit"}).format(dt); }
+    catch(e){ return dt.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }
+  }
+  function dayDiffMT(dt){
+    var p = mtParts(dt), n = mtParts(new Date());
+    return Math.round((Date.UTC(p.y,p.m-1,p.d) - Date.UTC(n.y,n.m-1,n.d)) / 864e5);
+  }
+  function fmtDay(dt){
+    var diff = dayDiffMT(dt), p = mtParts(dt);
+    if(diff === 0) return "Today";
+    if(diff === 1) return "Tomorrow";
+    if(diff > 1 && diff < 7) return p.wd;
+    try{ return new Intl.DateTimeFormat("en-US", {timeZone:TZ, weekday:"short", month:"short", day:"numeric"}).format(dt); }
+    catch(e){ return p.wd+" "+p.m+"/"+p.d; }
+  }
+  // "Today · 1:00 PM MT"
+  function fmtWhen(iso){
+    var dt = new Date(iso); if(isNaN(dt)) return "";
+    return fmtDay(dt) + " · " + fmtClock(dt) + " MT";
+  }
+  // two-line version for tight spots: {day:"Sun", time:"1:00 PM MT"}
+  function whenParts(iso){
+    var dt = new Date(iso); if(isNaN(dt)) return {day:"", time:""};
+    return { day:fmtDay(dt), time:fmtClock(dt)+" MT" };
+  }
+  // compact ticker text: "1:00 PM MT" today, "Sun 1:00 PM MT" later
+  function fmtShort(iso){
+    var dt = new Date(iso); if(isNaN(dt)) return "";
+    var diff = dayDiffMT(dt);
+    var day = diff===0 ? "" : (diff===1 ? "Tmrw " : mtParts(dt).wd+" ");
+    return day + fmtClock(dt) + " MT";
   }
   function sidesOf(ev){
     var comp = (ev.competitions||[])[0] || {};
@@ -491,29 +541,137 @@
     });
   }
 
-  function fetchTeamSchedule(league, teamId){
-    var key = league.key+":"+teamId, cached = scheduleCache[key], HOUR = 36e5;
-    if(cached && (Date.now()-cached.fetchedAt) < HOUR) return Promise.resolve(cached.next);
-    var url = API + league.path + "/teams/" + teamId + "/schedule";
-    return fetchJSON(url, 12000).then(function(d){
-      var now = Date.now(), next = null;
-      (d.events||[]).forEach(function(ev){
-        var t = new Date(ev.date).getTime();
-        var st = ((ev.competitions||[])[0]||{}).status || ev.status;
-        var done = st && st.type && st.type.completed;
-        if(!done && t > now - 3*36e5 && (!next || t < next.time)){
-          var s = sidesOf(ev);
-          var opp = null, homeAway = "";
-          if(s.away && s.home){
-            if(String((s.home.team||{}).id) === String(teamId)){ opp = s.away.team; homeAway = "vs"; }
-            else { opp = s.home.team; homeAway = "at"; }
-          }
-          next = { time:t, date:ev.date, opp:opp ? (opp.displayName||opp.name) : "", homeAway:homeAway };
-        }
-      });
-      scheduleCache[key] = {fetchedAt:Date.now(), next:next};
-      return next;
-    }).catch(function(){ return null; });
+  /* ============ next game for a team ============
+     Layered, because ESPN's team schedule endpoint is picky:
+       1. today's/this week's scoreboard we already loaded (has live score + TV)
+       2. the team schedule. Soccer needs ?fixture=true (default returns only
+          played matches). Other sports default to whatever season phase ESPN
+          picks (can be preseason), so fall back to regular season, then playoffs. */
+  var nextCache = {}, nextInflight = {};
+  var qActive = 0, qWait = [], Q_MAX = 4;
+  function queued(fn){
+    return new Promise(function(res, rej){
+      function run(){
+        qActive++;
+        var p; try{ p = fn(); }catch(e){ p = Promise.reject(e); }
+        p.then(function(v){ qActive--; res(v); pump(); }, function(e){ qActive--; rej(e); pump(); });
+      }
+      if(qActive < Q_MAX) run(); else qWait.push(run);
+    });
+  }
+  function pump(){ while(qActive < Q_MAX && qWait.length) qWait.shift()(); }
+
+  function describeNext(ev, teamId, st){
+    var s = sidesOf(ev);
+    var isHome = String((s.home.team||{}).id) === String(teamId);
+    var me = isHome ? s.home : s.away, opp = isHome ? s.away : s.home;
+    var ot = opp.team || {};
+    return {
+      state: st.state, time: new Date(ev.date).getTime(), date: ev.date, detail: st.detail,
+      opp: ot.displayName || ot.shortDisplayName || ot.name || "Opponent TBD",
+      oppAbbrev: ot.abbreviation || "", homeAway: isHome ? "vs" : "at",
+      tv: broadcastText(ev, true), myScore: me.score, oppScore: opp.score
+    };
+  }
+
+  function nextFromScoreboard(league, teamId){
+    var evs = scoreboardData[league.key]; if(!evs) return null;
+    var best = null;
+    evs.forEach(function(ev){
+      var st = statusOf(ev); if(st.state === "post") return;
+      var s = sidesOf(ev); if(!s.away || !s.home) return;
+      var aid = String((s.away.team||{}).id), hid = String((s.home.team||{}).id);
+      if(aid !== String(teamId) && hid !== String(teamId)) return;
+      var c = describeNext(ev, teamId, st);
+      if(!best || (c.state==="in" && best.state!=="in") || (c.state===best.state && c.time < best.time)) best = c;
+    });
+    return best;
+  }
+
+  function pickUpcoming(events, teamId){
+    var now = Date.now(), best = null;
+    (events||[]).forEach(function(ev){
+      var st = statusOf(ev);
+      if(st.state === "post" || st.completed) return;
+      var t = new Date(ev.date).getTime(); if(isNaN(t)) return;
+      if(st.state !== "in" && t < now - 4*36e5) return;       // already long over
+      var s = sidesOf(ev); if(!s.away || !s.home) return;
+      var c = describeNext(ev, teamId, st);
+      if(!best || c.time < best.time) best = c;
+    });
+    return best;
+  }
+
+  function scheduleUrls(league, teamId){
+    var base = API + league.path + "/teams/" + teamId + "/schedule";
+    if(league.path.indexOf("soccer/") === 0) return [base+"?fixture=true", base];
+    return [base, base+"?seasontype=2", base+"?seasontype=3"];
+  }
+
+  function earlier(a, b){
+    if(a && b) return (b.state==="in" && a.state!=="in") ? b : (a.state==="in" && b.state!=="in") ? a : (b.time < a.time ? b : a);
+    return a || b || null;
+  }
+
+  // sync peek: whatever we already know, or undefined if we haven't looked yet
+  function peekNext(league, teamId){
+    var local = nextFromScoreboard(league, teamId);
+    if(local && local.state === "in") return local;
+    var c = nextCache[league.key+":"+teamId];
+    if(!c) return local || undefined;
+    var v = c.val;
+    if(v && v.error) return local || v;
+    return earlier(local, v);
+  }
+
+  function getNextGame(league, teamId){
+    var key = league.key+":"+teamId;
+    var local = nextFromScoreboard(league, teamId);
+    if(local && local.state === "in") return Promise.resolve(local);
+    function finish(v){
+      if(v && v.error) return local || v;
+      return earlier(local, v);
+    }
+    var c = nextCache[key];
+    if(c){
+      var ttl = (c.val && c.val.error) ? 60e3 : (c.val ? 36e5 : 6e5);
+      if(Date.now() - c.at < ttl) return Promise.resolve(finish(c.val));
+    }
+    if(nextInflight[key]) return nextInflight[key].then(finish);
+
+    var urls = scheduleUrls(league, teamId);
+    var p = new Promise(function(resolve){
+      var i = 0, failures = 0;
+      (function step(){
+        if(i >= urls.length) return resolve(failures === urls.length ? {error:true} : null);
+        var u = urls[i++];
+        queued(function(){ return fetchJSON(u, 12000); }).then(function(d){
+          var best = pickUpcoming(d.events, teamId);
+          if(best) resolve(best); else step();
+        }, function(){ failures++; step(); });
+      })();
+    }).then(function(v){
+      nextCache[key] = {at:Date.now(), val:v};
+      delete nextInflight[key];
+      return v;
+    });
+    nextInflight[key] = p;
+    return p.then(finish);
+  }
+
+  // one line of text for a next-game result
+  function nextLineHTML(n){
+    if(n === undefined) return "Checking the schedule…";
+    if(!n) return "No upcoming game listed";
+    if(n.error) return "Schedule unavailable right now";
+    var tv = n.tv ? "📺 "+esc(n.tv) : "";
+    if(n.state === "in"){
+      var l2 = [n.detail ? esc(n.detail) : "", tv].filter(Boolean).join(" · ");
+      return '<span class="nx-live">LIVE</span> ' + esc(n.myScore||"0") + "-" + esc(n.oppScore||"0") +
+        " " + esc(n.homeAway) + " " + esc(n.opp) + (l2 ? "<br>"+l2 : "");
+    }
+    return "Next: " + esc(n.homeAway) + " " + esc(n.opp) + "<br>" +
+      [esc(fmtWhen(n.date)), tv].filter(Boolean).join(" · ");
   }
 
   /* ============ rendering ============ */
@@ -539,18 +697,20 @@
 
   /* ---- Bingo ---- */
   function renderBingo(){
-    var now = new Date();
-    var isThu = now.getDay() === 4;
-    var past = isThu && (now.getHours() > 21);
-    var tonight = isThu && !past;
+    // always judged in Mountain Time, no matter where the phone thinks it is
+    var p = mtParts(new Date());
+    var isThu = p.wd === "Thu";
+    var tonight = isThu && p.h < 22;                 // Thursday until 10pm
+    var tomorrow = p.wd === "Wed";
     var sub = tonight
-      ? (now.getHours() >= 19 ? "Happening now in the bar" : "Tonight at 7:00 PM")
-      : "Every Thursday at 7:00 PM";
+      ? (p.h >= 19 ? "Happening now in the bar" : "Tonight at 7:00 PM MT")
+      : (tomorrow ? "Tomorrow at 7:00 PM MT" : "Every Thursday at 7:00 PM MT");
+    var tag = tonight ? "TONIGHT" : (tomorrow ? "TOMORROW" : "THU");
     document.getElementById("bingoSlot").innerHTML =
       '<div class="bingo'+(tonight?" tonight":"")+'">' +
         '<span class="ico">🎱</span>' +
         '<div><div class="b-t">Bingo Night at Cheba Hut</div><div class="b-s">'+sub+'</div></div>' +
-        (tonight ? '<span class="tag">TONIGHT</span>' : '<span class="tag">THU</span>') +
+        '<span class="tag">'+tag+'</span>' +
       '</div>';
   }
 
@@ -586,7 +746,7 @@
       if(l.kind){
         html += '<button class="tick'+(st.state==="in"?" live":"")+'" data-jump="'+l.key+'">' +
           '<span class="lg">'+l.icon+'</span><span class="t">'+esc(it.ev.shortName||it.ev.name||l.label)+'</span>' +
-          '<span class="st">'+esc(st.detail||"")+'</span></button>';
+          '<span class="st">'+esc(st.state==="pre" ? fmtShort(it.ev.date) : (st.detail||""))+'</span></button>';
         return;
       }
       var s = sidesOf(it.ev);
@@ -599,7 +759,7 @@
         '<span class="lg">'+l.icon+'</span>' +
         '<span class="t">'+esc(at.abbreviation||at.shortDisplayName||"")+'</span>' + mid +
         '<span class="t">'+esc(ht.abbreviation||ht.shortDisplayName||"")+'</span>' +
-        '<span class="st">'+esc(st.state==="in" ? st.detail : shortTime(it.ev.date))+'</span></button>';
+        '<span class="st">'+esc(st.state==="in" ? st.detail : fmtShort(it.ev.date))+'</span></button>';
     });
     // duplicate for a seamless loop
     track.innerHTML = html + html;
@@ -611,9 +771,6 @@
         if(sec) sec.scrollIntoView({behavior:"smooth", block:"start"});
       });
     });
-  }
-  function shortTime(d){
-    try{ return new Date(d).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }catch(e){ return ""; }
   }
 
   /* ---- one game card ---- */
@@ -635,7 +792,7 @@
         '</div>';
     }
     var pillCls = st.state==="in" ? "live" : (st.state==="post" ? "final" : "sched");
-    var pillTxt = st.state==="in" ? "LIVE · "+st.detail : (st.state==="post" ? "FINAL" : st.detail);
+    var pillTxt = st.state==="in" ? "LIVE · "+st.detail : (st.state==="post" ? "FINAL" : fmtWhen(ev.date) || st.detail);
     var done = st.state==="post";
     return '<div class="game'+(st.state==="in"?" is-live":"")+'">' +
       row(s.away, done && aS<hS) + row(s.home, done && hS<aS) +
@@ -664,7 +821,7 @@
       (sub ? '<div class="meta">📍 '+esc(sub)+'</div>' : '') +
       '<div class="meta"><span class="pill '+(st.state==="in"?"live":(st.state==="post"?"final":"sched"))+'">' +
         esc(st.state==="in" ? "LIVE" : (st.state==="post" ? "FINAL" : "UPCOMING")) + '</span>' +
-        '<span>'+esc(st.detail||"")+'</span></div>' +
+        '<span>'+esc(st.state==="pre" ? (fmtWhen(ev.date) || st.detail) : (st.detail||""))+'</span></div>' +
       '<div class="meta">📺 '+esc(broadcastText(ev))+'</div>' +
       (lead ? '<div class="leader">'+esc(lead)+'</div>' : '') +
       '</div>';
@@ -731,22 +888,39 @@
         renderEverything();
       });
     });
-    // fill in "next game" for favorites with nothing on the board
-    favorites.forEach(function(f){
-      var league = LEAGUE_MAP[f.leagueKey]; if(!league) return;
-      if(findFavEvent(f)) return;
-      var slot = wrap.querySelector('[data-next="'+f.leagueKey+":"+f.id+'"]');
-      if(!slot) return;
-      fetchTeamSchedule(league, f.id).then(function(next){
-        var s = wrap.querySelector('[data-next="'+f.leagueKey+":"+f.id+'"]');
-        if(!s) return;
-        if(!next){ s.textContent = "No upcoming game listed."; return; }
-        var when = "";
-        try{ when = new Date(next.date).toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"}) +
-          " · " + shortTime(next.date); }catch(e){}
-        s.textContent = "Next: " + next.homeAway + " " + next.opp + " — " + when;
-      });
+    hydrateNext(wrap);   // fill in "next game" lines we haven't looked up yet
+  }
+
+  /* ---- next-game slots (favorites + search results) ---- */
+  function nextSlotHTML(lk, id, cls){
+    var league = LEAGUE_MAP[lk];
+    var pk = league ? peekNext(league, id) : null;
+    return '<div class="'+cls+'" data-next-lk="'+lk+'" data-next-id="'+esc(id)+'"' +
+      (pk === undefined ? ' data-pending="1"' : '') + '>' + nextLineHTML(pk) + '</div>';
+  }
+  function loadNextInto(el){
+    var league = LEAGUE_MAP[el.getAttribute("data-next-lk")];
+    if(!league || !el.hasAttribute("data-pending")) return;
+    el.removeAttribute("data-pending");
+    getNextGame(league, el.getAttribute("data-next-id")).then(function(n){
+      if(document.body.contains(el)) el.innerHTML = nextLineHTML(n);
     });
+  }
+  function hydrateNext(root){
+    Array.prototype.forEach.call(root.querySelectorAll("[data-pending]"), loadNextInto);
+  }
+  // search results: only look up rows as they scroll into view
+  var nextIO = null;
+  function hydrateNextLazy(root, scroller){
+    if(nextIO){ nextIO.disconnect(); nextIO = null; }
+    var els = Array.prototype.slice.call(root.querySelectorAll("[data-pending]"));
+    if(typeof IntersectionObserver === "undefined"){ els.slice(0,12).forEach(loadNextInto); return; }
+    nextIO = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){ nextIO.unobserve(en.target); loadNextInto(en.target); }
+      });
+    }, {root:scroller, rootMargin:"160px"});
+    els.forEach(function(el){ nextIO.observe(el); });
   }
 
   function findFavEvent(f){
@@ -768,13 +942,13 @@
       '<span class="nm">'+esc(f.name)+'</span>' +
       '<button class="fav-x" data-lk="'+f.leagueKey+'" data-id="'+esc(f.id)+'" aria-label="Unpin">✕</button></div>';
     if(!ev){
-      return '<div class="fav">' + head +
-        '<div class="fav-body" data-next="'+f.leagueKey+":"+esc(f.id)+'">Checking the schedule…</div></div>';
+      return '<div class="fav">' + head + nextSlotHTML(f.leagueKey, f.id, "fav-body") + '</div>';
     }
     var st = statusOf(ev), s = sidesOf(ev);
     var at = (s.away.team||{}), ht = (s.home.team||{});
+    var wp = st.state === "pre" ? whenParts(ev.date) : null;
     var mid = st.state === "pre"
-      ? '<span class="vs">'+esc(st.detail||"vs")+'</span>'
+      ? '<span class="vs">'+(wp && wp.day ? esc(wp.day)+'<br>'+esc(wp.time) : esc(st.detail||"vs"))+'</span>'
       : '<span class="sc mono">'+esc(s.away.score||"0")+'</span>' +
         '<span class="vs">'+esc(st.state==="in" ? st.detail : "FINAL")+'</span>' +
         '<span class="sc mono">'+esc(s.home.score||"0")+'</span>';
@@ -786,7 +960,9 @@
         '<div class="fav-side right"><span class="side-name">'+esc(ht.shortDisplayName||ht.name||"")+'</span>'+
           crestOrBadge({logo:ht.logo,abbrev:ht.abbreviation},"sm")+'</div>' +
       '</div>' +
-      '<div class="fav-body">📺 '+esc(broadcastText(ev))+'</div></div>';
+      '<div class="fav-body">📺 '+esc(broadcastText(ev))+'</div>' +
+      (st.state === "post" ? nextSlotHTML(f.leagueKey, f.id, "fav-body fav-next") : '') +
+      '</div>';
   }
 
   /* ---- league sections ---- */
@@ -856,7 +1032,7 @@
       (scoreboardData[l.key]||[]).forEach(function(ev){ if(statusOf(ev).state==="in") liveCount++; });
     });
     var t = "";
-    try{ t = new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }catch(e){}
+    try{ t = fmtClock(new Date()) + " MT"; }catch(e){}
     dot.className = "dot " + (liveCount ? "livedot" : "on");
     txt.textContent = (liveCount ? liveCount+" game"+(liveCount===1?"":"s")+" live · " : "") + "updated " + t;
   }
@@ -912,7 +1088,7 @@
           var ot = other.team||{};
           burst();
           showBanner((t.shortDisplayName||t.displayName)+" scored!",
-            (t.abbreviation||"")+" "+score+" — "+(ot.abbreviation||"")+" "+(other.score||"0")+" · "+st.detail);
+            (t.abbreviation||"")+" "+score+" · "+(ot.abbreviation||"")+" "+(other.score||"0")+" · "+st.detail);
         }
       });
     });
@@ -967,7 +1143,8 @@
       html += '<div class="s-label">'+league.icon+' '+esc(league.label)+'</div>';
       matches.slice(0,8).forEach(function(t){
         var fav = isFav(league.key, t.id);
-        html += '<div class="s-row">'+crestOrBadge(t,"lg")+'<span class="nm">'+esc(t.name)+'</span>' +
+        html += '<div class="s-row">'+crestOrBadge(t,"lg")+
+          '<div class="s-main"><div class="nm">'+esc(t.name)+'</div>' + nextSlotHTML(league.key, t.id, "s-next") + '</div>' +
           '<button class="star'+(fav?" active":"")+'" data-lk="'+league.key+'" data-id="'+esc(t.id)+'"' +
           ' data-name="'+encodeURIComponent(t.name)+'" data-abbrev="'+esc(t.abbrev||"")+'"' +
           ' data-logo="'+encodeURIComponent(t.logo||"")+'" aria-label="'+(fav?"Unpin":"Pin")+'">'+(fav?"★":"☆")+'</button></div>';
@@ -1007,7 +1184,11 @@
         renderEverything();
       });
     });
+    // look up "next game" only for rows the person can actually see, after they pause typing
+    clearTimeout(hydrateTimer);
+    hydrateTimer = setTimeout(function(){ hydrateNextLazy(searchResults, searchResults); }, 220);
   }
+  var hydrateTimer = null;
 
   /* ============ refresh loops ============ */
   function refreshAll(){
